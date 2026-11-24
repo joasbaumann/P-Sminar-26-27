@@ -1,0 +1,1274 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Physik-Escape-Room: Das Labor von Dr. Newton">
+<title>Das Labor von Dr. Newton</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: klebende Anzeigeleiste (Timer + Ziffern) über Millimeterpapier; Funkverkehr und Entscheidungen oben, darunter Orte als Reiter mit je einer Szene und einem Rätsel. */
+:root {
+  --bg: #eef1f5;
+  --surface: #ffffff;
+  --ink: #14213a;
+  --muted: #56627a;
+  --line: #c9d1de;
+  --grid: #dfe5ee;
+  --accent: #d9480f;
+  --accent-ink: #ffffff;
+  --ok: #1b7f4b;
+  --bad: #b42318;
+  --font-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1626; --surface: #162238; --ink: #e6ecf6; --muted: #93a1ba; --line: #2a3a58; --grid: #15213a;
+    --accent: #ff8a3d; --accent-ink: #1a0f05; --ok: #4cc38a; --bad: #ff7b72;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1626; --surface: #162238; --ink: #e6ecf6; --muted: #93a1ba; --line: #2a3a58; --grid: #15213a;
+  --accent: #ff8a3d; --accent-ink: #1a0f05; --ok: #4cc38a; --bad: #ff7b72;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--ink);
+  font: 16px/1.55 var(--font-body);
+}
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--surface);
+}
+.wrap {
+  width: 100%; max-width: 880px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; margin: 0; text-wrap: balance; letter-spacing: 0.01em; }
+p { margin: 0 0 0.9em; max-width: 65ch; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+
+/* HUD */
+.hud { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--surface); border-bottom: 1px solid var(--line); }
+.hud .wrap { display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; padding-block: 10px; }
+.brand { font-family: var(--font-display); font-size: 22px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; min-width: 0; }
+.hud-right { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.timer { font-family: var(--font-mono); font-weight: 600; font-size: 24px; font-variant-numeric: tabular-nums; line-height: 1; }
+.timer small { font-size: 11px; font-weight: 500; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; display: block; margin-bottom: 2px; }
+.timer.warn { color: var(--accent); }
+.timer.over { color: var(--bad); }
+.pen { font-family: var(--font-mono); font-weight: 600; font-size: 16px; min-width: 4.5ch; font-variant-numeric: tabular-nums; }
+.pen.neg { color: var(--bad); }
+.pen.pos { color: var(--ok); }
+.slots { display: flex; gap: 6px; }
+.slot { width: 30px; height: 38px; display: grid; place-items: center; border: 1.5px solid var(--line); border-radius: 3px; font-family: var(--font-mono); font-weight: 600; font-size: 20px; color: var(--muted); background: var(--bg); }
+.slot.on { border-color: var(--accent); color: var(--ink); background: var(--surface); }
+
+/* Buttons */
+.btn { appearance: none; cursor: pointer; font: 600 15px/1 var(--font-body); padding: 12px 18px; min-height: 44px; border-radius: 4px; border: 1.5px solid var(--accent); background: var(--accent); color: var(--accent-ink); }
+.btn:hover { filter: brightness(1.06); }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn.ghost:hover { border-color: var(--ink); filter: none; }
+.btn.small { min-height: 36px; padding: 8px 12px; font-size: 13px; }
+.btn[disabled] { opacity: 0.5; cursor: default; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Intro */
+.intro { padding-block: 32px 48px; }
+.intro .panel { padding: 28px; }
+.intro h1 { font-size: clamp(36px, 8vw, 60px); line-height: 0.98; text-transform: uppercase; margin-bottom: 18px; }
+.rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 20px 0 24px; padding: 0; list-style: none; }
+.rules li { border-top: 2px solid var(--ink); padding-top: 8px; font-size: 14px; color: var(--muted); }
+.rules b { display: block; color: var(--ink); font-family: var(--font-mono); font-size: 18px; }
+details { margin-top: 22px; font-size: 14px; color: var(--muted); }
+summary { cursor: pointer; font-weight: 600; color: var(--ink); }
+details ol { margin: 10px 0 0; padding-left: 20px; }
+details li { margin-bottom: 4px; }
+.story { margin: 0 0 22px; max-width: 65ch; }
+.story .stamp { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+.story blockquote { margin: 0 0 0.9em; padding: 4px 0 4px 16px; border-left: 3px solid var(--accent); font-style: italic; }
+
+/* Game */
+.game { padding-block: 18px 80px; }
+.radio { border: 1px solid var(--line); border-left: 4px solid var(--accent); background: var(--surface); border-radius: 4px; padding: 12px 14px; margin-bottom: 14px; }
+.radio .eyebrow { margin-bottom: 4px; color: var(--accent); }
+.radio[data-who="KESSLER"] { border-left-color: var(--bad); }
+.radio[data-who="KESSLER"] .eyebrow { color: var(--bad); }
+.radio p { margin: 0; }
+.radio details { margin-top: 8px; }
+.radio ul { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
+.radio li { margin-bottom: 4px; }
+.dec { border: 1.5px solid var(--accent); background: var(--surface); border-radius: 6px; padding: 16px; margin-bottom: 14px; }
+.dec .eyebrow { color: var(--accent); }
+.dec p { margin-bottom: 4px; }
+.opts { display: grid; gap: 8px; margin-top: 12px; }
+.opt { appearance: none; cursor: pointer; text-align: left; font: 600 15px/1.3 var(--font-body); color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 4px; padding: 12px 14px; min-height: 44px; }
+.opt:hover { border-color: var(--ink); }
+.opt small { display: block; font-weight: 400; color: var(--muted); margin-top: 3px; }
+.tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 14px; }
+.tab { appearance: none; cursor: pointer; flex: 0 0 auto; font: 600 14px/1.2 var(--font-body); color: var(--ink); padding: 10px 14px; min-height: 44px; border-radius: 4px; border: 1.5px solid var(--line); background: var(--surface); display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; }
+.tab span { font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: var(--muted); }
+.tab[aria-current="true"] { border-color: var(--ink); box-shadow: 0 2px 0 var(--ink); }
+.tab.solved span { color: var(--ok); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 22px; }
+.panel h2 { font-size: 34px; line-height: 1; margin-bottom: 12px; }
+.scene { font-size: 17px; }
+.task { border-left: 3px solid var(--accent); padding-left: 14px; margin: 14px 0 16px; }
+.task p { margin-bottom: 6px; }
+.aid { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; border: 1px dashed var(--line); border-radius: 4px; padding: 10px 12px; margin-bottom: 14px; font-size: 14px; color: var(--muted); }
+.aid b { color: var(--ink); }
+.aid.on { border-style: solid; border-color: var(--ok); }
+.aid.on span { display: block; }
+.info { border: 1px solid var(--ok); border-radius: 4px; padding: 10px 12px; margin: 0 0 14px; font-family: var(--font-mono); font-size: 13px; }
+.figure { border: 1px solid var(--line); border-radius: 4px; background: var(--bg); padding: 8px; margin-bottom: 14px; }
+.figure svg { display: block; width: 100%; height: auto; overflow: hidden; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.row > * { min-width: 0; }
+label.lbl { font-size: 13px; font-weight: 600; color: var(--muted); display: block; margin-bottom: 4px; }
+input[type="text"] { font: 500 18px/1 var(--font-mono); padding: 12px; min-height: 44px; width: 140px; max-width: 100%; border: 1.5px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--ink); }
+input[type="range"] { width: min(360px, 100%); accent-color: var(--accent); min-height: 44px; }
+.readout { font-family: var(--font-mono); font-weight: 600; font-size: 18px; min-width: 8ch; font-variant-numeric: tabular-nums; }
+.msg { min-height: 1.5em; margin: 12px 0 0; font-size: 15px; }
+.msg.bad { color: var(--bad); }
+.msg.ok { color: var(--ok); font-weight: 600; }
+.hints { margin-top: 20px; padding-top: 14px; border-top: 1px dashed var(--line); }
+.hints ol { margin: 10px 0 0; padding-left: 22px; color: var(--muted); font-size: 15px; }
+.hints li { margin-bottom: 4px; }
+.reveal { margin-top: 18px; padding: 14px 16px; border: 1.5px solid var(--ok); border-radius: 4px; display: flex; align-items: flex-start; gap: 16px; }
+.reveal .digit { font-family: var(--font-mono); font-weight: 600; font-size: 48px; line-height: 1; color: var(--ok); }
+.reveal p { margin: 0; }
+
+/* SVG */
+.s-line { stroke: var(--ink); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.s-fill { fill: var(--surface); stroke: var(--ink); stroke-linejoin: round; }
+.s-text { fill: var(--ink); font-family: var(--font-mono); font-size: 12px; }
+.s-muted { fill: var(--muted); font-family: var(--font-mono); font-size: 11px; }
+.beam-rect { fill: var(--ink); }
+.weight { fill: var(--accent); stroke: var(--ink); stroke-width: 1.5; }
+.weight-text { fill: var(--accent-ink); font-family: var(--font-mono); font-size: 12px; font-weight: 600; text-anchor: middle; }
+.ray { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.mirror { stroke: var(--ink); stroke-width: 6; stroke-linecap: round; }
+.mirror-hit { stroke: transparent; stroke-width: 30; stroke-linecap: round; cursor: pointer; }
+.sensor { fill: var(--surface); stroke: var(--ink); stroke-width: 2; }
+.sensor.lit { fill: var(--ok); }
+.pend-bob { fill: var(--ink); }
+.pend-bob.mine { fill: var(--accent); }
+.mctl { display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; }
+.mctl b { font-family: var(--font-mono); font-size: 13px; }
+.mctl .ang { font-family: var(--font-mono); font-weight: 600; min-width: 5ch; text-align: center; font-variant-numeric: tabular-nums; }
+.mirror-ctl { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.stopwatch { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+.sw-display { font-family: var(--font-mono); font-weight: 600; font-size: 28px; min-width: 7ch; font-variant-numeric: tabular-nums; }
+
+/* Tresor */
+.code { display: flex; gap: 10px; margin: 14px 0 6px; }
+.code input { width: 58px; height: 72px; text-align: center; font-size: 34px; padding: 0; }
+.shake { animation: shake 0.4s; }
+@keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+.note { margin-top: 20px; padding: 20px; border: 1.5px solid var(--ok); border-radius: 4px; background: var(--bg); }
+.note h3 { font-size: 28px; margin-bottom: 10px; }
+.stats { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 14px; font-family: var(--font-mono); font-size: 14px; }
+
+/* Stromausfall */
+body::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 25; opacity: 0; transition: opacity 1.5s; background: radial-gradient(ellipse at center, rgba(4, 7, 14, 0.05) 30%, rgba(4, 7, 14, 0.7) 100%); }
+body[data-dim="1"]::after { opacity: 0.4; }
+body[data-dim="2"]::after { opacity: 0.7; }
+body[data-dim="3"]::after { opacity: 1; }
+.flick-layer { position: fixed; inset: 0; z-index: 26; pointer-events: none; background: rgba(4, 7, 14, 0.8); opacity: 0; }
+.flick-layer.go { animation: flick 0.9s steps(1) 1; }
+@keyframes flick { 0% { opacity: 0.8; } 10% { opacity: 0; } 20% { opacity: 0.7; } 35% { opacity: 0; } 55% { opacity: 0.5; } 70% { opacity: 0; } 100% { opacity: 0; } }
+
+/* PRISMA */
+.fab { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 40; box-shadow: 0 2px 0 var(--ink); }
+.drawer { position: fixed; right: 0; bottom: 0; z-index: 50; width: min(420px, 100%); height: min(80vh, 640px); background: var(--surface); border: 1px solid var(--line); border-bottom: 0; border-radius: 8px 8px 0 0; display: flex; flex-direction: column; gap: 10px; padding: 14px max(16px, env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) 16px; box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.25); }
+.dr-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.dr-title { font-family: var(--font-display); font-size: 26px; letter-spacing: 0.06em; }
+.dr-status { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin: 0; }
+.dr-know { font-size: 14px; color: var(--muted); border-left: 3px solid var(--accent); padding-left: 10px; }
+.msgs { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.b { max-width: 92%; padding: 9px 12px; border-radius: 6px; font-size: 15px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.b.me { align-self: flex-end; background: var(--ink); color: var(--surface); }
+.b.ai { align-self: flex-start; background: var(--bg); border: 1px solid var(--line); }
+.b.err { color: var(--bad); }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { cursor: pointer; min-height: 36px; font: 500 13px var(--font-body); border: 1.5px solid var(--line); background: transparent; color: var(--ink); border-radius: 999px; padding: 6px 12px; }
+.chip:hover { border-color: var(--ink); }
+.dr-form { display: flex; gap: 8px; }
+.dr-form input { flex: 1; width: auto; min-width: 0; font: 400 16px var(--font-body); }
+
+@media (prefers-reduced-motion: reduce) { .shake { animation: none; } .flick-layer.go { animation: none; } body::after { transition: none; } }
+@media (max-width: 480px) {
+  .panel { padding: 16px; }
+  .panel h2 { font-size: 30px; }
+  .intro .panel { padding: 20px; }
+}
+</style>
+
+<header class="hud">
+  <div class="wrap">
+    <div class="brand">Labor Dr. Newton</div>
+    <div class="hud-right">
+      <div class="slots" id="slots" aria-label="Gefundene Ziffern"></div>
+      <span class="pen" id="pen" aria-live="polite"></span>
+      <div class="timer" id="timer"><small id="timerLabel">Bis Mitternacht</small><span id="timerVal">60:00</span></div>
+      <button class="btn ghost small" id="resetBtn" type="button" hidden>Neu starten</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="intro" id="intro">
+    <div class="wrap">
+      <div class="panel">
+        <div class="eyebrow">Escape Room · Physik</div>
+        <h1>Das Labor von Dr. Newton</h1>
+        <div class="story">
+          <p class="stamp">23:00 Uhr · Labor 7 · Noch eine Stunde bis Mitternacht</p>
+          <p>Dr. Newton ist seit drei Tagen verschwunden. Sein Büro steht offen, die Kaffeetasse ist noch warm. Auf dem Bildschirm flackert PRISMA, seine Labor-KI, beschädigt von einem Stromstoß.</p>
+          <blockquote>„Ich kann nur noch erklären, nicht mehr lösen. Dr. Newton hat sein wichtigstes Ergebnis im Tresor eingeschlossen. Um Mitternacht schaltet der Netzbetreiber das Gebäude ab, dann bleibt der Tresor für immer zu. Und Kessler ist schon im Haus.“</blockquote>
+          <p>Kessler Dynamics will das Ergebnis haben. Den Code hat Dr. Newton an vier Orten im Labor versteckt. Ihr bestimmt, wo ihr anfangt, welche Hilfsmittel ihr einsetzt und wem ihr vertraut.</p>
+        </div>
+        <ul class="rules">
+          <li><b>Zeit ist Währung</b>Fehler, Hinweise und Hilfsmittel kosten Zeit.</li>
+          <li><b>Eure Wahl</b>Reihenfolge, Hilfsmittel und drei Entscheidungen.</li>
+          <li><b>3 Enden</b>Wie ihr entscheidet, bestimmt den Schluss.</li>
+        </ul>
+        <button class="btn" id="startBtn" type="button">Mission starten</button>
+        <details>
+          <summary>Lösungen für die Spielleitung</summary>
+          <ol>
+            <li>Schreibtisch: 2·30 + 4·15 = 120 = 4·20 + 5·x, also x = 8 cm, Ziffer 4</li>
+            <li>Schaltschrank: 24 V / 12 Ω + 24 V / 6 Ω = 2 A + 4 A = 6 A, Ziffer 7</li>
+            <li>Laserkammer: Spiegel 150°, 150°, 30°, Ziffer 1</li>
+            <li>Standuhr: L = 1 m · (3 s / 2 s)² ≈ 2,24 m (Toleranz 2,12 bis 2,36 m), Ziffer 9</li>
+            <li>Tresor: 4 – 7 – 1 – 9</li>
+          </ol>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section class="game" id="game" hidden>
+    <div class="wrap">
+      <div class="radio" id="radio" hidden role="status" aria-live="polite">
+        <div class="eyebrow" id="radioWho">PRISMA</div>
+        <p id="radioText"></p>
+        <details id="radioMore" hidden><summary>Verlauf</summary><ul id="radioHist"></ul></details>
+      </div>
+      <div class="dec" id="decision" hidden></div>
+      <nav class="tabs" id="tabs" aria-label="Orte"></nav>
+
+      <!-- Ort 1: Schreibtisch -->
+      <article class="panel" data-st="0" hidden>
+        <div class="eyebrow">Ort 1 · Hebelgesetz</div>
+        <h2>Newtons Schreibtisch</h2>
+        <p class="scene">Der Schreibtisch steht noch so da, wie Newton ihn verlassen hat. Die oberste Schublade hängt an einer Balkenwaage und lässt sich nur öffnen, wenn die Waage im Gleichgewicht ist.</p>
+        <div class="task">
+          <p>Links hängen ein 2-kg-Gewicht bei 30 cm und ein 4-kg-Gewicht bei 15 cm Abstand zum Drehpunkt. Rechts hängt schon ein 4-kg-Gewicht bei 20 cm. Das 5-kg-Gewicht liegt daneben.</p>
+          <p><b>Wo muss das 5-kg-Gewicht rechts hängen?</b> Ohne Wasserwaage seht ihr die Neigung nur nach einem Fehlversuch.</p>
+        </div>
+        <div class="aid" id="aid0"></div>
+        <div class="figure">
+          <svg id="seesaw" viewBox="0 0 600 250" role="img" aria-label="Balkenwaage mit zwei Gewichten links, einem festen Gewicht rechts und einem verschiebbaren 5-kg-Gewicht">
+            <line x1="20" y1="232" x2="580" y2="232" class="s-line" stroke-width="2"/>
+            <polygon points="300,176 268,232 332,232" class="s-fill" stroke-width="2"/>
+            <g id="beam">
+              <rect x="40" y="164" width="520" height="12" class="beam-rect"/>
+              <g id="ticks"></g>
+            </g>
+            <circle cx="300" cy="170" r="4" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div class="row">
+          <div>
+            <label class="lbl" for="slideX">Abstand des 5-kg-Gewichts zum Drehpunkt</label>
+            <div class="row"><input type="range" id="slideX" min="2" max="50" step="1" value="40"><span class="readout" id="slideOut">40 cm</span></div>
+          </div>
+          <button class="btn" id="seesawBtn" type="button">Gewicht loslassen</button>
+        </div>
+        <p class="msg" id="msg0" role="status"></p>
+      </article>
+
+      <!-- Ort 2: Schaltschrank -->
+      <article class="panel" data-st="1" hidden>
+        <div class="eyebrow">Ort 2 · Ohmsches Gesetz, Parallelschaltung</div>
+        <h2>Der Schaltschrank</h2>
+        <p class="scene">Hinter der Wandverkleidung sitzt der Schaltschrank des Labors. Zwei Geräte hängen parallel an Newtons Batterie. Das Sicherheitsschloss will wissen, wie viel Strom die Batterie insgesamt liefert.</p>
+        <div class="task">
+          <p>Die Batterie liefert 24 V. Ein Widerstand hat 12 Ω, der andere 6 Ω. Das Amperemeter sitzt direkt hinter der Batterie.</p>
+          <p><b>Wie viel Ampere zeigt es an?</b></p>
+        </div>
+        <div class="aid" id="aid1"></div>
+        <div class="figure">
+          <svg viewBox="0 0 460 240" role="img" aria-label="Parallelschaltung: 24-Volt-Batterie, Amperemeter, Widerstand 12 Ohm und Widerstand 6 Ohm">
+            <g class="s-line" stroke-width="2.5">
+              <path d="M60 40 V95"/><path d="M60 115 V200"/>
+              <path d="M40 95 H80"/><path d="M50 115 H70" stroke-width="5"/>
+              <path d="M60 40 H108"/><path d="M152 40 H320"/>
+              <path d="M200 40 V90"/><path d="M200 160 V200"/>
+              <path d="M320 40 V90"/><path d="M320 160 V200"/>
+              <path d="M60 200 H320"/>
+            </g>
+            <circle cx="130" cy="40" r="22" class="s-fill" stroke-width="2.5"/>
+            <text class="s-text" x="130" y="46" text-anchor="middle" style="font-size:16px;font-weight:600">A ?</text>
+            <rect x="186" y="90" width="28" height="70" class="s-fill" stroke-width="2.5"/>
+            <rect x="306" y="90" width="28" height="70" class="s-fill" stroke-width="2.5"/>
+            <text class="s-text" x="224" y="130" style="font-size:14px">R₁ = 12 Ω</text>
+            <text class="s-text" x="344" y="130" style="font-size:14px">R₂ = 6 Ω</text>
+            <text class="s-text" x="74" y="110" style="font-size:14px">24 V</text>
+            <text class="s-muted" x="60" y="224">Batterie</text>
+          </svg>
+        </div>
+        <p class="info" id="mm" hidden>Multimeter: Durch den 12-Ω-Zweig fließen 2 A, durch den 6-Ω-Zweig fließen 4 A.</p>
+        <div class="row">
+          <div><label class="lbl" for="amp">Stromstärke I in Ampere</label><input type="text" id="amp" inputmode="decimal" autocomplete="off" placeholder="z. B. 2,5"></div>
+          <button class="btn" id="ampBtn" type="button">Schloss testen</button>
+        </div>
+        <p class="msg" id="msg1" role="status"></p>
+      </article>
+
+      <!-- Ort 3: Laserkammer -->
+      <article class="panel" data-st="2" hidden>
+        <div class="eyebrow">Ort 3 · Reflexionsgesetz</div>
+        <h2>Die Laserkammer</h2>
+        <p class="scene">Die Kammer ist von Newtons Messlaser durchzogen. Er strahlt nach rechts. Unten rechts sitzt ein Sensor, der ein Kästchen mit einem Tonband öffnet. Eine Trennwand versperrt den geraden Weg dorthin, und jeder Fehlschuss weckt Kessler im Nebenraum.</p>
+        <div class="task">
+          <p>Stellt die drei Spiegel in 15-Grad-Schritten ein. Der Strahl wird erst beim Test sichtbar, ein Fehlschuss kostet 15 Sekunden.</p>
+          <p><b>Lenkt den Strahl auf den Sensor.</b> Tippt einen Spiegel an oder nutzt die Knöpfe.</p>
+        </div>
+        <div class="aid" id="aid2"></div>
+        <div class="figure">
+          <svg id="laser" viewBox="0 0 600 360" role="img" aria-label="Laser, drei drehbare Spiegel und ein Lichtsensor">
+            <rect x="8" y="286" width="50" height="28" rx="3" class="s-fill" stroke-width="2"/>
+            <text class="s-muted" x="33" y="342" text-anchor="middle">Laser</text>
+            <text class="s-muted" x="540" y="342" text-anchor="middle">Sensor</text>
+            <rect x="486" y="235" width="8" height="125" class="beam-rect"/>
+            <text class="s-muted" x="490" y="228" text-anchor="middle">Wand</text>
+            <polyline id="ray" class="ray" points=""/>
+            <g id="mirrors"></g>
+            <circle id="sensor" class="sensor" cx="540" cy="300" r="20"/>
+          </svg>
+        </div>
+        <div class="mirror-ctl" id="mctl"></div>
+        <p class="info" id="angles" hidden></p>
+        <div class="row"><button class="btn" id="testBtn" type="button">Laser testen</button></div>
+        <p class="msg" id="msg2" role="status"></p>
+      </article>
+
+      <!-- Ort 4: Standuhr -->
+      <article class="panel" data-st="3" hidden>
+        <div class="eyebrow">Ort 4 · Periodendauer</div>
+        <h2>Die Standuhr</h2>
+        <p class="scene">Die Standuhr im Flur steuert das Schloss zum Tresorraum. Ihr Pendel muss genau 3 Sekunden für eine Schwingung brauchen. Daneben hängt Newtons Vergleichspendel, einen Meter lang.</p>
+        <div class="task">
+          <p>Das Vergleichspendel links hat 1 m Länge. Das Pendel rechts könnt ihr verlängern oder verkürzen.</p>
+          <p><b>Wie lang muss euer Pendel sein, damit eine volle Schwingung 3 Sekunden dauert?</b></p>
+        </div>
+        <div class="aid" id="aid3"></div>
+        <p class="info" id="formula" hidden>Formelblatt: T = 2π · √(L / g) mit g = 9,81 m/s². Gilt für Fadenpendel mit kleinem Ausschlag.</p>
+        <div class="stopwatch">
+          <span class="sw-display" id="swDisplay">0,00 s</span>
+          <button class="btn small" id="swToggle" type="button">Start</button>
+          <button class="btn ghost small" id="swReset" type="button">Null</button>
+          <button class="btn ghost small" id="pendPause" type="button">Pendel anhalten</button>
+        </div>
+        <div class="figure">
+          <svg id="pendSvg" viewBox="0 0 600 290" role="img" aria-label="Vergleichspendel mit 1 Meter und einstellbares Pendel">
+            <line x1="60" y1="24" x2="540" y2="24" class="s-line" stroke-width="5"/>
+            <text class="s-text" x="170" y="278" text-anchor="middle">Vergleich 1,00 m</text>
+            <text class="s-text" id="myLabel" x="430" y="278" text-anchor="middle">Euer Pendel</text>
+          </svg>
+        </div>
+        <div class="row">
+          <div>
+            <label class="lbl" for="slideL">Länge eures Pendels</label>
+            <div class="row"><input type="range" id="slideL" min="0.5" max="4" step="0.05" value="1.5"><span class="readout" id="lenOut">1,50 m</span></div>
+          </div>
+          <button class="btn" id="pendBtn" type="button">Länge einrasten</button>
+        </div>
+        <p class="msg" id="msg3" role="status"></p>
+      </article>
+
+      <!-- Ort 5: Tresorraum -->
+      <article class="panel" data-st="4" hidden>
+        <div class="eyebrow">Finale</div>
+        <h2>Der Tresorraum</h2>
+        <p class="scene">Der Tresor steht kalt und schwer im Raum. Auf dem Boden zeichnet sich der Schatten von jemandem ab, der vor der Tür wartet.</p>
+        <div class="task">
+          <p>Gebt die vier Ziffern in der Reihenfolge der Orte 1 bis 4 ein. Ein falscher Code löst den Alarm aus und kostet 30 Sekunden.</p>
+        </div>
+        <div class="code" id="code">
+          <input type="text" id="c0" inputmode="numeric" maxlength="1" autocomplete="off" aria-label="Ziffer 1">
+          <input type="text" id="c1" inputmode="numeric" maxlength="1" autocomplete="off" aria-label="Ziffer 2">
+          <input type="text" id="c2" inputmode="numeric" maxlength="1" autocomplete="off" aria-label="Ziffer 3">
+          <input type="text" id="c3" inputmode="numeric" maxlength="1" autocomplete="off" aria-label="Ziffer 4">
+        </div>
+        <p class="msg" id="msgMissing"></p>
+        <div class="row"><button class="btn" id="safeBtn" type="button">Tresor öffnen</button></div>
+        <p class="msg" id="msg4" role="status"></p>
+        <div class="note" id="note" hidden>
+          <div class="eyebrow">Brief aus dem Tresor</div>
+          <h3 id="noteTitle">Der Tresor ist offen, und das Licht geht wieder an.</h3>
+          <div id="noteBody"></div>
+          <div id="noteDec" hidden></div>
+          <p id="rank" style="margin-top:14px"></p>
+          <div class="stats" id="stats"></div>
+        </div>
+      </article>
+    </div>
+  </section>
+</main>
+
+<div class="flick-layer" id="flick" aria-hidden="true"></div>
+<button class="btn fab" id="askBtn" type="button" aria-expanded="false" aria-controls="drawer" hidden>PRISMA fragen</button>
+<aside class="drawer" id="drawer" hidden aria-label="PRISMA, die Labor-KI">
+  <div class="dr-head">
+    <div><div class="eyebrow">Labor-KI</div><div class="dr-title">PRISMA</div></div>
+    <button class="btn ghost small" id="dClose" type="button">Schließen</button>
+  </div>
+  <p class="dr-status" id="dStatus"></p>
+  <div class="dr-know" id="dKnow"></div>
+  <div class="msgs" id="msgs" aria-live="polite"></div>
+  <div class="chips" id="chips"></div>
+  <form class="dr-form" id="dForm">
+    <input type="text" id="dIn" autocomplete="off" placeholder="Was versteht ihr nicht?" aria-label="Frage an PRISMA">
+    <button class="btn small" id="dSend" type="submit">Fragen</button>
+    <button class="btn ghost small" id="dStop" type="button" hidden>Stopp</button>
+  </form>
+</aside>
+
+<script>
+(function () {
+  var KEY = 'newton-lab-v2';
+  var TOTAL = 3600;
+  var CODE = [4, 7, 1, 9];
+  var NAMES = ['Schreibtisch', 'Schaltschrank', 'Laserkammer', 'Standuhr', 'Tresorraum'];
+  var HCOST = [0, 30, 60];
+  var NS = 'http://www.w3.org/2000/svg';
+
+  function fresh() {
+    return { started: false, start: 0, end: 0, pen: 0, digits: [null, null, null, null], hintN: [0, 0, 0, 0],
+      aid: [false, false, false, false], dec: { d1: null, d2: null, d3: null }, fl: { talk: false, deal: -1 },
+      log: [], ev: {}, done: false };
+  }
+  var S = fresh();
+  var current = 0;
+
+  var HINTS = [
+    ['Das Hebelgesetz vergleicht Drehmomente: Masse mal Abstand zum Drehpunkt. Die Summen links und rechts müssen gleich sein.',
+     'Links: 2 kg · 30 cm + 4 kg · 15 cm = 120 kg·cm. Rechts steht schon 4 kg · 20 cm = 80 kg·cm.',
+     'Es fehlen 40 kg·cm. Das 5-kg-Gewicht muss also 40 geteilt durch 5 Zentimeter vom Drehpunkt entfernt hängen.'],
+    ['Bei einer Parallelschaltung liegt an jedem Widerstand die volle Spannung. Jeder Zweig hat seinen eigenen Strom.',
+     'Rechnet für jeden Zweig I = U / R. Die Ströme der Zweige addieren sich zum Gesamtstrom.',
+     'Zweig 1: 24 V / 12 Ω = 2 A. Zweig 2: 24 V / 6 Ω = 4 A. Zusammen fließen 6 A.'],
+    ['Der Strahl muss erst schräg nach oben, dann waagrecht nach rechts, dann schräg nach unten laufen.',
+     'Ein Spiegel lenkt den Strahl um das Doppelte des Winkels ab, den er mit dem Strahl bildet. Für 60° Ablenkung steht der Spiegel 30° zum Strahl geneigt.',
+     'Spiegel 1: 150°, Spiegel 2: 150°, Spiegel 3: 30°.'],
+    ['Die Periodendauer hängt nur von der Länge ab: T = 2π · √(L / g). Das Gewicht spielt keine Rolle.',
+     'Das Vergleichspendel mit 1 m braucht etwa 2 s. Die Zeit wächst mit der Wurzel der Länge: Die 1,5-fache Zeit braucht die 1,5² = 2,25-fache Länge.',
+     '3 s sind das 1,5-Fache von 2 s. Also L = 1 m · 1,5² = 2,25 m, genau 2,24 m.']
+  ];
+  var BEATS = [
+    'Die Schublade gleitet auf. Darin liegt ein Schlüssel mit der Gravur 4 und ein Zettel in Newtons Handschrift: „Vier Experimente, vier Ziffern. Vertraut nur dem, was ihr messen könnt.“',
+    'Der Schaltschrank klickt, und ein Fach fällt auf. Darin liegt ein Foto: Dr. Newton vor dem Tresor, und er lächelt. Das sieht nicht nach einer Entführung aus. Auf der Rückseite steht eine 7.',
+    'Der Sensor leuchtet grün. Im Kästchen steckt ein Tonband und ein Zettel mit einer 1. Newtons Stimme sagt: „Prisma, wenn sie das Licht lenken können, sind sie bereit. Hilf ihnen, aber verrate nichts.“ Draußen fällt die Hauptsicherung.',
+    'Die Standuhr gongt dreimal. Im Sockel öffnet sich eine Klappe, darin liegt eine 9. Im Flur rüttelt jemand an einer Tür.'
+  ];
+  var AIDS = [
+    { n: 'Wasserwaage', d: 'Zeigt die Neigung der Waage sofort an.' },
+    { n: 'Multimeter', d: 'Misst den Strom in jedem Zweig.' },
+    { n: 'Winkelmesser', d: 'Zeigt nach jedem Test die Winkel an den Spiegeln.' },
+    { n: 'Formelblatt', d: 'Zeigt die Formel für die Periodendauer.' }
+  ];
+
+  function $(s) { return document.querySelector(s); }
+  function $$(s) { return Array.prototype.slice.call(document.querySelectorAll(s)); }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return;
+      var o = JSON.parse(raw);
+      if (!o || !o.digits) return;
+      var f = fresh();
+      for (var k in f) if (o[k] !== undefined) f[k] = o[k];
+      S = f;
+    } catch (e) {}
+  }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function fmt(sec) { sec = Math.max(0, Math.floor(sec)); return pad(Math.floor(sec / 60)) + ':' + pad(sec % 60); }
+  function fmtShort(sec) { sec = Math.abs(Math.round(sec)); return Math.floor(sec / 60) + ':' + pad(sec % 60); }
+  function leftSeconds() { return TOTAL - (Date.now() - S.start) / 1000 - S.pen; }
+  function digitsCount() { return S.digits.filter(function (d) { return d !== null; }).length; }
+  function setMsg(i, text, kind) {
+    var el = $('#msg' + i);
+    el.textContent = text;
+    el.className = 'msg' + (kind ? ' ' + kind : '');
+  }
+
+  /* Zeit als Währung */
+  var penTimer = 0;
+  function applyPenalty(sec) {
+    S.pen += sec; save();
+    var p = $('#pen');
+    p.textContent = (sec > 0 ? '−' : '+') + fmtShort(sec);
+    p.className = 'pen ' + (sec > 0 ? 'neg' : 'pos');
+    clearTimeout(penTimer);
+    penTimer = setTimeout(function () { p.textContent = ''; }, 2500);
+    tick();
+  }
+
+  /* HUD */
+  function renderSlots() {
+    $('#slots').innerHTML = S.digits.map(function (d) {
+      return '<div class="slot' + (d !== null ? ' on' : '') + '">' + (d !== null ? d : '·') + '</div>';
+    }).join('');
+  }
+  function tick() {
+    if (!S.started) return;
+    var el = $('#timer'), val = $('#timerVal'), lab = $('#timerLabel');
+    if (S.done) {
+      lab.textContent = 'Geschafft in';
+      val.textContent = fmt((S.end - S.start) / 1000 + S.pen);
+      el.className = 'timer';
+      return;
+    }
+    var left = leftSeconds();
+    checkEvents(left);
+    renderDecision();
+    if (left <= 0) {
+      lab.textContent = 'Nach Mitternacht';
+      val.textContent = '+' + fmt(-left);
+      el.className = 'timer over';
+    } else {
+      lab.textContent = 'Bis Mitternacht';
+      val.textContent = fmt(left);
+      el.className = 'timer' + (left < 300 ? ' warn' : '');
+    }
+  }
+  setInterval(tick, 500);
+
+  /* Orte */
+  function renderTabs() {
+    var all = digitsCount() === 4;
+    $('#tabs').innerHTML = NAMES.map(function (n, i) {
+      var solved = i < 4 ? S.digits[i] !== null : S.done;
+      return '<button type="button" class="tab' + (solved ? ' solved' : '') + '" data-i="' + i + '"' +
+        (i === current ? ' aria-current="true"' : '') + '>' + (i + 1) + ' ' + n +
+        '<span>' + (solved ? 'gelöst' : (i === 4 ? (all ? 'bereit' : 'Code') : 'offen')) + '</span></button>';
+    }).join('');
+  }
+  $('#tabs').addEventListener('click', function (e) {
+    var b = e.target.closest('.tab');
+    if (b) showStation(+b.getAttribute('data-i'));
+  });
+  function showStation(i) {
+    current = i;
+    $$('.panel[data-st]').forEach(function (p) { p.hidden = (+p.getAttribute('data-st') !== i); });
+    renderTabs();
+    if (i === 3) startPend(); else stopPend();
+    if (i === 4) updateMissing();
+    renderChips();
+    window.scrollTo(0, 0);
+  }
+
+  /* Gemeinsame Bausteine pro Ort: Lösung und Hinweise */
+  [0, 1, 2, 3].forEach(function (i) {
+    $('.panel[data-st="' + i + '"]').insertAdjacentHTML('beforeend',
+      '<div class="reveal" id="rev' + i + '" hidden><div class="digit" id="revD' + i + '"></div><p id="revT' + i + '"></p></div>' +
+      '<div class="hints"><button class="btn ghost small" id="hintBtn' + i + '" type="button"></button><ol id="hintList' + i + '"></ol></div>');
+    $('#hintBtn' + i).addEventListener('click', function () {
+      if (S.hintN[i] >= 3) return;
+      var c = HCOST[S.hintN[i]];
+      S.hintN[i]++;
+      if (c) applyPenalty(c); else save();
+      renderHints(i);
+    });
+  });
+  function renderHints(i) {
+    var n = S.hintN[i];
+    $('#hintList' + i).innerHTML = HINTS[i].slice(0, n).map(function (h) { return '<li>' + h + '</li>'; }).join('');
+    var b = $('#hintBtn' + i);
+    b.textContent = n >= 3 ? 'Alle Hinweise angezeigt' : 'Hinweis ' + (n + 1) + ' anzeigen (' + (HCOST[n] ? '−' + fmtShort(HCOST[n]) : 'kostenlos') + ')';
+    b.disabled = n >= 3;
+  }
+  function updateReveals() {
+    for (var i = 0; i < 4; i++) {
+      var has = S.digits[i] !== null;
+      $('#rev' + i).hidden = !has;
+      if (has) {
+        $('#revD' + i).textContent = S.digits[i];
+        $('#revT' + i).textContent = S.fl.deal === i ? 'Diese Ziffer hat euch Kessler genannt. Dafür schuldet ihr ihm einen Gefallen.' : BEATS[i];
+      }
+    }
+    renderSlots();
+    renderTabs();
+  }
+  function solve(i, viaDeal) {
+    if (S.digits[i] !== null) { updateReveals(); return; }
+    S.digits[i] = CODE[i];
+    S.log.push({ who: viaDeal ? 'KESSLER' : 'PRISMA', text: viaDeal
+      ? 'Die Ziffer für Ort ' + (i + 1) + ' lautet ' + CODE[i] + '. Wir sehen uns nach Mitternacht.'
+      : BEATS[i] });
+    if (digitsCount() === 4) S.log.push({ who: 'PRISMA', text: 'Alle vier Ziffern sind gefunden. Zum Tresorraum, schnell!' });
+    save(); renderRadio(); updateReveals(); renderDecision();
+  }
+
+  /* Hilfsmittel */
+  function renderAid(i) {
+    var el = $('#aid' + i);
+    if (S.aid[i]) {
+      el.className = 'aid on';
+      el.innerHTML = '<span><b>Im Einsatz: ' + AIDS[i].n + '</b>' + AIDS[i].d + '</span>';
+    } else {
+      el.className = 'aid';
+      el.innerHTML = '<span><b>Hilfsmittel: ' + AIDS[i].n + '.</b> ' + AIDS[i].d + '</span>' +
+        '<button class="btn ghost small" type="button" data-aid="' + i + '">Nutzen (−1:00)</button>';
+    }
+    if (i === 0) updateSeesaw();
+    if (i === 1) $('#mm').hidden = !S.aid[1];
+    if (i === 2) renderAngles();
+    if (i === 3) $('#formula').hidden = !S.aid[3];
+  }
+  $('#game').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-aid]');
+    if (!b) return;
+    var i = +b.getAttribute('data-aid');
+    if (S.aid[i]) return;
+    S.aid[i] = true;
+    applyPenalty(60);
+    renderAid(i);
+  });
+
+  /* Ort 1: Balkenwaage */
+  var wMove = null, tempTilt = null, tiltTimer = 0;
+  (function buildSeesaw() {
+    var ticks = '';
+    for (var k = -5; k <= 5; k++) {
+      var tx = 300 + 50 * k;
+      ticks += '<line x1="' + tx + '" y1="176" x2="' + tx + '" y2="183" class="s-line" stroke-width="1.5"/>' +
+        '<text class="s-muted" x="' + tx + '" y="197" text-anchor="middle">' + Math.abs(k) * 10 + '</text>';
+    }
+    $('#ticks').innerHTML = ticks;
+    function mk(kg, x) {
+      var w = 26 + kg * 3, h = 20 + kg * 5;
+      var g = document.createElementNS(NS, 'g');
+      g.setAttribute('transform', 'translate(' + x + ',0)');
+      var r = document.createElementNS(NS, 'rect');
+      r.setAttribute('class', 'weight'); r.setAttribute('x', -w / 2); r.setAttribute('y', 164 - h);
+      r.setAttribute('width', w); r.setAttribute('height', h);
+      var t = document.createElementNS(NS, 'text');
+      t.setAttribute('class', 'weight-text'); t.setAttribute('x', 0); t.setAttribute('y', 164 - h / 2 + 4);
+      t.textContent = kg + ' kg';
+      g.appendChild(r); g.appendChild(t);
+      $('#beam').appendChild(g);
+      return g;
+    }
+    mk(2, 300 - 5 * 30); mk(4, 300 - 5 * 15); mk(4, 300 + 5 * 20);
+    wMove = mk(5, 300 + 5 * 40);
+  })();
+  function seesawAngle(v) {
+    var diff = (80 + 5 * v) - 120;
+    return Math.max(-14, Math.min(14, diff * 0.3));
+  }
+  function updateSeesaw() {
+    var v = +$('#slideX').value;
+    $('#slideOut').textContent = v + ' cm';
+    wMove.setAttribute('transform', 'translate(' + (300 + 5 * v) + ',0)');
+    var a = S.aid[0] ? seesawAngle(v) : (tempTilt !== null ? tempTilt : 0);
+    $('#beam').setAttribute('transform', 'rotate(' + a + ' 300 170)');
+  }
+  $('#slideX').addEventListener('input', function () { tempTilt = null; updateSeesaw(); });
+  $('#seesawBtn').addEventListener('click', function () {
+    var v = +$('#slideX').value;
+    if (v === 8) { setMsg(0, 'Die Waage steht im Gleichgewicht.', 'ok'); solve(0); return; }
+    var a = seesawAngle(v);
+    applyPenalty(30);
+    setMsg(0, 'Die Waage kippt nach ' + (a > 0 ? 'rechts' : 'links') + '. Das war ein Fehlversuch (−0:30).', 'bad');
+    tempTilt = a; updateSeesaw();
+    clearTimeout(tiltTimer);
+    tiltTimer = setTimeout(function () { tempTilt = null; updateSeesaw(); }, 2500);
+  });
+
+  /* Ort 2: Schaltschrank */
+  $('#ampBtn').addEventListener('click', function () {
+    var raw = $('#amp').value.replace(',', '.').replace(/[^0-9.\-]/g, '');
+    var v = parseFloat(raw);
+    if (isNaN(v)) { setMsg(1, 'Gebt eine Zahl ein, zum Beispiel 2,5.', 'bad'); return; }
+    if (Math.abs(v - 6) < 1e-9) { setMsg(1, 'Richtig: 6 A.', 'ok'); solve(1); return; }
+    var m;
+    if (Math.abs(v - 24 / 18) < 0.02) m = 'Das wäre eine Reihenschaltung. Hier hängen beide Widerstände parallel an der Batterie.';
+    else if (v === 2) m = 'Das ist nur der Strom durch den 12-Ω-Zweig. Das Amperemeter sitzt vor der Verzweigung.';
+    else if (v === 4) m = '4 kann der Strom im 6-Ω-Zweig oder der Gesamtwiderstand sein. Gesucht ist der Strom, den die Batterie insgesamt liefert.';
+    else m = 'Das Schloss bleibt zu.';
+    applyPenalty(30);
+    setMsg(1, m + ' (−0:30)', 'bad');
+  });
+  $('#amp').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('#ampBtn').click(); });
+
+  /* Ort 3: Laser */
+  var MIR = [{ x: 240, y: 300 }, { x: 340, y: 126.8 }, { x: 440, y: 126.8 }];
+  var ang = [90, 45, 120], lastTrace = null;
+  var HALF = 42, SENS = { x: 540, y: 300, r: 20 }, LASER = { x: 62, y: 300 };
+  var mirrorEls = [];
+  MIR.forEach(function (m, i) {
+    var g = document.createElementNS(NS, 'g');
+    g.setAttribute('tabindex', '0'); g.setAttribute('role', 'button'); g.setAttribute('aria-label', 'Spiegel ' + (i + 1) + ' drehen');
+    var hit = document.createElementNS(NS, 'line'); hit.setAttribute('class', 'mirror-hit');
+    var ln = document.createElementNS(NS, 'line'); ln.setAttribute('class', 'mirror');
+    var tx = document.createElementNS(NS, 'text'); tx.setAttribute('class', 's-text');
+    tx.setAttribute('x', m.x + 22); tx.setAttribute('y', m.y - 20); tx.textContent = 'S' + (i + 1);
+    g.appendChild(hit); g.appendChild(ln); g.appendChild(tx);
+    g.addEventListener('click', function () { rotate(i, 15); });
+    g.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); rotate(i, 15); } });
+    $('#mirrors').appendChild(g);
+    mirrorEls.push({ hit: hit, ln: ln });
+  });
+  $('#mctl').innerHTML = MIR.map(function (m, i) {
+    return '<div class="mctl"><b>Spiegel ' + (i + 1) + '</b>' +
+      '<button class="btn ghost small" type="button" data-m="' + i + '" data-d="-15" aria-label="Spiegel ' + (i + 1) + ' um 15 Grad zurück">−15°</button>' +
+      '<span class="ang" id="ang' + i + '"></span>' +
+      '<button class="btn ghost small" type="button" data-m="' + i + '" data-d="15" aria-label="Spiegel ' + (i + 1) + ' um 15 Grad weiter">+15°</button></div>';
+  }).join('');
+  $('#mctl').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-m]');
+    if (b) rotate(+b.getAttribute('data-m'), +b.getAttribute('data-d'));
+  });
+  function rotate(i, d) {
+    ang[i] = ((ang[i] + d) % 180 + 180) % 180;
+    lastTrace = null;
+    $('#ray').setAttribute('points', '');
+    renderLaser(); renderAngles();
+  }
+  function trace() {
+    var P = { x: LASER.x, y: LASER.y }, d = { x: 1, y: 0 }, pts = [P], hit = false, last = -1, hits = [];
+    for (var b = 0; b < 8; b++) {
+      var bestT = Infinity, bi = -1;
+      for (var i = 0; i < MIR.length; i++) {
+        if (i === last) continue;
+        var th = ang[i] * Math.PI / 180, mx = Math.cos(th), my = Math.sin(th);
+        var cx = MIR[i].x - P.x, cy = MIR[i].y - P.y;
+        var den = d.x * my - d.y * mx;
+        if (Math.abs(den) < 1e-9) continue;
+        var t = (cx * my - cy * mx) / den, s = (cx * d.y - cy * d.x) / den;
+        if (t > 1e-6 && Math.abs(s) <= HALF && t < bestT) { bestT = t; bi = i; }
+      }
+      var fx = P.x - SENS.x, fy = P.y - SENS.y;
+      var bq = fx * d.x + fy * d.y, cq = fx * fx + fy * fy - SENS.r * SENS.r, disc = bq * bq - cq, ts = Infinity;
+      if (disc >= 0) { var t1 = -bq - Math.sqrt(disc); if (t1 > 0) ts = t1; }
+      var tw = Infinity;
+      if (Math.abs(d.x) > 1e-9) { var tt = (490 - P.x) / d.x, wy = P.y + d.y * tt; if (tt > 1e-6 && wy >= 235 && wy <= 360) tw = tt; }
+      if (tw < bestT && tw < ts) { pts.push({ x: P.x + d.x * tw, y: P.y + d.y * tw }); break; }
+      if (ts < bestT) { pts.push({ x: P.x + d.x * ts, y: P.y + d.y * ts }); hit = true; break; }
+      if (bi < 0) { pts.push({ x: P.x + d.x * 1500, y: P.y + d.y * 1500 }); break; }
+      P = { x: P.x + d.x * bestT, y: P.y + d.y * bestT };
+      pts.push(P);
+      var th2 = ang[bi] * Math.PI / 180, mx2 = Math.cos(th2), my2 = Math.sin(th2);
+      var dot = d.x * mx2 + d.y * my2;
+      var graz = Math.acos(Math.min(1, Math.abs(dot))) * 180 / Math.PI;
+      hits.push({ m: bi, alpha: Math.round(90 - graz) });
+      d = { x: 2 * dot * mx2 - d.x, y: 2 * dot * my2 - d.y };
+      last = bi;
+    }
+    return { pts: pts, hit: hit, hits: hits };
+  }
+  function renderLaser() {
+    mirrorEls.forEach(function (el, i) {
+      var th = ang[i] * Math.PI / 180, dx = Math.cos(th) * HALF, dy = Math.sin(th) * HALF;
+      [el.hit, el.ln].forEach(function (l) {
+        l.setAttribute('x1', MIR[i].x - dx); l.setAttribute('y1', MIR[i].y - dy);
+        l.setAttribute('x2', MIR[i].x + dx); l.setAttribute('y2', MIR[i].y + dy);
+      });
+      $('#ang' + i).textContent = ang[i] + '°';
+    });
+    $('#sensor').setAttribute('class', 'sensor' + (S.digits[2] !== null ? ' lit' : ''));
+  }
+  function renderAngles() {
+    var el = $('#angles');
+    if (!S.aid[2] || !lastTrace) { el.hidden = true; return; }
+    el.hidden = false;
+    el.textContent = lastTrace.hits.length
+      ? 'Winkelmesser: ' + lastTrace.hits.map(function (h) { return 'Spiegel ' + (h.m + 1) + ': Einfallswinkel = Ausfallswinkel = ' + h.alpha + '° zum Lot'; }).join(' · ')
+      : 'Winkelmesser: Der Strahl hat keinen Spiegel getroffen.';
+  }
+  $('#testBtn').addEventListener('click', function () {
+    var r = trace();
+    lastTrace = r;
+    $('#ray').setAttribute('points', r.pts.map(function (p) { return p.x.toFixed(1) + ',' + p.y.toFixed(1); }).join(' '));
+    renderAngles();
+    if (r.hit) { setMsg(2, 'Treffer: Der Sensor leuchtet.', 'ok'); solve(2); renderLaser(); }
+    else if (S.digits[2] !== null) { setMsg(2, 'Der Sensor ist schon freigeschaltet.', 'ok'); }
+    else { applyPenalty(15); setMsg(2, 'Fehlschuss: Der Strahl verfehlt den Sensor. (−0:15)', 'bad'); }
+  });
+
+  /* Ort 4: Standuhr */
+  var G = 9.81, PXM = 55, REFX = 170, MYX = 430;
+  var swRef = null, swMine = null, boxRef, boxMine, lineMine, bobMine;
+  (function buildPend() {
+    function mk(x, px, mine) {
+      var sw = document.createElementNS(NS, 'g');
+      var line = document.createElementNS(NS, 'line');
+      line.setAttribute('class', 's-line'); line.setAttribute('stroke-width', '1.5');
+      line.setAttribute('x1', x); line.setAttribute('y1', 24); line.setAttribute('x2', x); line.setAttribute('y2', 24 + px);
+      var bob = document.createElementNS(NS, 'circle');
+      bob.setAttribute('class', 'pend-bob' + (mine ? ' mine' : '')); bob.setAttribute('cx', x); bob.setAttribute('cy', 24 + px); bob.setAttribute('r', 12);
+      sw.appendChild(line); sw.appendChild(bob);
+      $('#pendSvg').appendChild(sw);
+      return { sw: sw, line: line, bob: bob };
+    }
+    boxRef = mk(REFX, PXM * 1.0, false);
+    boxMine = mk(MYX, PXM * 1.5, true);
+  })();
+  function myL() { return +$('#slideL').value; }
+  function periodOf(L) { return 2 * Math.PI * Math.sqrt(L / G); }
+  function fmtL(L) { return L.toFixed(2).replace('.', ','); }
+  function updateLen() {
+    var L = myL(), px = PXM * L;
+    $('#lenOut').textContent = fmtL(L) + ' m';
+    $('#myLabel').textContent = 'Euer Pendel ' + fmtL(L) + ' m';
+    boxMine.line.setAttribute('y2', 24 + px);
+    boxMine.bob.setAttribute('cy', 24 + px);
+  }
+  $('#slideL').addEventListener('input', updateLen);
+  var rafId = 0, paused = false, lastT = 0, phRef = 0, phMine = 0;
+  function frame(now) {
+    var dt = Math.min(0.1, (now - lastT) / 1000);
+    lastT = now;
+    phRef += 2 * Math.PI * dt / periodOf(1.0);
+    phMine += 2 * Math.PI * dt / periodOf(myL());
+    boxRef.sw.setAttribute('transform', 'rotate(' + (14 * Math.cos(phRef)).toFixed(2) + ' ' + REFX + ' 24)');
+    boxMine.sw.setAttribute('transform', 'rotate(' + (14 * Math.cos(phMine)).toFixed(2) + ' ' + MYX + ' 24)');
+    rafId = requestAnimationFrame(frame);
+  }
+  function startPend() {
+    if (rafId || paused) return;
+    lastT = performance.now();
+    rafId = requestAnimationFrame(frame);
+  }
+  function stopPend() { if (rafId) { cancelAnimationFrame(rafId); rafId = 0; } }
+  $('#pendPause').addEventListener('click', function () {
+    paused = !paused;
+    this.textContent = paused ? 'Pendel starten' : 'Pendel anhalten';
+    if (paused) stopPend(); else startPend();
+  });
+  $('#pendBtn').addEventListener('click', function () {
+    var L = myL();
+    if (L >= 2.12 && L <= 2.36) { setMsg(3, 'Eingerastet: ' + fmtL(L) + ' m ergeben etwa 3 Sekunden.', 'ok'); solve(3); return; }
+    applyPenalty(30);
+    setMsg(3, (L < 2.12 ? 'Zu kurz: Euer Pendel schwingt schneller als alle 3 s.' : 'Zu lang: Euer Pendel schwingt langsamer als alle 3 s.') + ' (−0:30)', 'bad');
+  });
+  var swRun = false, swStart = 0, swAcc = 0, swTimer = 0;
+  function swShow() {
+    var ms = swAcc + (swRun ? performance.now() - swStart : 0);
+    $('#swDisplay').textContent = (ms / 1000).toFixed(2).replace('.', ',') + ' s';
+  }
+  $('#swToggle').addEventListener('click', function () {
+    if (!swRun) { swRun = true; swStart = performance.now(); this.textContent = 'Stopp'; swTimer = setInterval(swShow, 40); }
+    else { swAcc += performance.now() - swStart; swRun = false; this.textContent = 'Start'; clearInterval(swTimer); swShow(); }
+  });
+  $('#swReset').addEventListener('click', function () { swAcc = 0; swStart = performance.now(); swShow(); });
+
+  /* Tresor */
+  var cIn = [0, 1, 2, 3].map(function (i) { return $('#c' + i); });
+  cIn.forEach(function (el, i) {
+    el.addEventListener('input', function () {
+      el.value = el.value.replace(/[^0-9]/g, '').slice(0, 1);
+      if (el.value && i < 3) cIn[i + 1].focus();
+    });
+    el.addEventListener('keydown', function (e) {
+      if (e.key === 'Backspace' && !el.value && i > 0) cIn[i - 1].focus();
+      if (e.key === 'Enter') $('#safeBtn').click();
+    });
+    el.addEventListener('focus', function () { el.select(); });
+  });
+  function updateMissing() {
+    var miss = [];
+    for (var i = 0; i < 4; i++) if (S.digits[i] === null) miss.push(i + 1);
+    var el = $('#msgMissing');
+    if (S.done) { el.textContent = ''; return; }
+    el.textContent = miss.length === 0 ? 'Alle vier Ziffern sind gefunden.' : 'Es fehlen noch die Ziffern von Ort ' + miss.join(', ') + '.';
+  }
+  var LETTER = '„Es gab nie ein verschollenes Ergebnis. Das Ergebnis seid ihr. Wer Kräfte ausgleicht, Ströme berechnet, Licht lenkt und Schwingungen misst, versteht die Welt ein Stück besser. Prisma und ich haben euch zugesehen. Willkommen im Team.“ Dr. Newton';
+  var END_CLEAN = 'Im Flur wird es still. Kessler ist verschwunden, die Sicherheitsleute haben ihn gestellt. Im Tresor liegt kein geheimes Ergebnis, nur ein Brief in Newtons Handschrift.';
+  var END_DEAL = 'Die Tür fliegt auf. Kessler steht im Raum und hält die Ziffer in der Hand, die er euch verkauft hat. Hinter ihm tritt Dr. Newton hervor und lächelt. „Kessler ist mein alter Kollege. Ich wollte wissen, ob ihr einem Gegner Türen öffnet. Ihr habt es getan, aber den Rest habt ihr selbst gelöst.“ Im Tresor liegt nur ein Brief.';
+  var EPI = [
+    'Ihr stellt die vier Experimente ins Netz. Bald lösen Klassen in anderen Städten dieselben Rätsel.',
+    'Dr. Newton gründet mit euch einen Forscherclub. Labor 7 öffnet ab jetzt jeden Montag.',
+    'Um 00:41 Uhr kommt die Pizza. PRISMA bekommt einen neuen Akku und hat den Rest der Nacht Redepause.'
+  ];
+  function renderEnding() {
+    var deal = S.fl.deal >= 0;
+    $('#noteBody').innerHTML = '<p>' + (deal ? END_DEAL : END_CLEAN) + '</p><p>' + LETTER + '</p>';
+    var dec = $('#noteDec');
+    if (!S.dec.d3) {
+      dec.hidden = false;
+      dec.innerHTML = '<p><b>Letzte Entscheidung: Was macht ihr mit Newtons Vermächtnis?</b></p><div class="opts">' +
+        ['Alle Experimente veröffentlichen', 'Das Labor zum Forscherclub machen', 'Erst mal Pizza bestellen'].map(function (l, i) {
+          return '<button class="opt" type="button" data-end="' + i + '">' + l + '</button>';
+        }).join('') + '</div>';
+      $('#rank').textContent = '';
+    } else {
+      dec.hidden = true;
+      var sec = Math.round((S.end - S.start) / 1000 + S.pen);
+      var rank = sec <= 1800 ? 'Meisterforscher: unter 30 Minuten.' : sec <= 2700 ? 'Laborprofis: unter 45 Minuten.' : sec <= 3600 ? 'Geschafft, bevor das Licht ausging.' : 'Das Licht war schon aus, aber ihr habt es geschafft.';
+      $('#rank').textContent = EPI[S.dec.d3 - 1] + ' ' + rank + (deal ? ' Kessler hat dafür eine Tür bekommen.' : ' Kessler ging leer aus.');
+    }
+  }
+  $('#noteDec').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-end]');
+    if (!b) return;
+    S.dec.d3 = +b.getAttribute('data-end') + 1;
+    save(); renderEnding();
+  });
+  function showNote() {
+    var sec = Math.round((S.end - S.start) / 1000 + S.pen);
+    var hints = S.hintN.reduce(function (a, b) { return a + b; }, 0);
+    var aids = S.aid.filter(Boolean).length;
+    $('#stats').innerHTML = '<span>Zeit: ' + fmt(sec) + '</span><span>Hinweise: ' + hints + '</span><span>Hilfsmittel: ' + aids + '</span>';
+    $('#note').hidden = false;
+    $('#safeBtn').disabled = true;
+    cIn.forEach(function (el, i) { el.value = CODE[i]; el.readOnly = true; });
+    renderEnding(); updateMissing(); applyDim(); tick(); renderTabs();
+  }
+  $('#safeBtn').addEventListener('click', function () {
+    var vals = cIn.map(function (el) { return el.value; });
+    if (vals.some(function (v) { return v === ''; })) { setMsg(4, 'Tragt alle vier Ziffern ein.', 'bad'); return; }
+    var right = 0;
+    vals.forEach(function (v, i) { if (+v === CODE[i]) right++; });
+    if (right === 4) {
+      S.done = true; S.end = Date.now(); save();
+      setMsg(4, 'Der Tresor springt auf.', 'ok');
+      showNote();
+    } else {
+      applyPenalty(30);
+      setMsg(4, 'Alarm! ' + right + ' von 4 Ziffern stehen an der richtigen Stelle. (−0:30)', 'bad');
+      var box = $('#code');
+      box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
+    }
+  });
+
+  /* Story: Funkverkehr und Stromausfall */
+  var EVENTS = [
+    { k: 'e1', at: 3000, who: 'PRISMA', t: 'Ich sehe ein Fahrzeug auf dem Parkplatz. Es gehört Kessler Dynamics. Beeilt euch.' },
+    { k: 'e2', at: 2400, who: 'PRISMA', t: 'Die Netzspannung fällt auf 70 Prozent. Die Lampen werden dunkler.', dim: 1, flick: true },
+    { k: 'e3', at: 1800, who: 'KESSLER', t: 'Ich weiß, dass ihr im Labor seid. Dr. Newtons Ergebnis gehört bald mir. Macht es euch nicht schwerer als nötig.' },
+    { k: 'e4', at: 900, who: 'PRISMA', t: 'Kessler steht im Flur und probiert Zugangskarten durch. Noch 15 Minuten bis zum Blackout.', dim: 2, flick: true },
+    { k: 'e5', at: 300, who: 'PRISMA', t: 'Notbeleuchtung aktiv. Noch fünf Minuten.', dim: 3, flick: true },
+    { k: 'e6', at: 0, who: 'PRISMA', t: 'Blackout. Der Notstrom hält den Tresor noch kurz offen für einen Versuch. Kessler hämmert an die Tür.', dim: 3, flick: true }
+  ];
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; });
+  }
+  function renderRadio() {
+    var box = $('#radio'), l = S.log || [];
+    if (!l.length) { box.hidden = true; return; }
+    var last = l[l.length - 1];
+    box.hidden = false;
+    box.setAttribute('data-who', last.who);
+    $('#radioWho').textContent = last.who;
+    $('#radioText').textContent = last.text;
+    var older = l.slice(0, -1).reverse();
+    $('#radioHist').innerHTML = older.map(function (m) { return '<li><b>' + escapeHtml(m.who) + ':</b> ' + escapeHtml(m.text) + '</li>'; }).join('');
+    $('#radioMore').hidden = older.length === 0;
+  }
+  function applyDim() {
+    var lvl = 0;
+    EVENTS.forEach(function (e) { if (S.ev[e.k] && e.dim && e.dim > lvl) lvl = e.dim; });
+    document.body.setAttribute('data-dim', String(S.done ? 0 : lvl));
+  }
+  function flicker() {
+    var f = $('#flick');
+    f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
+  }
+  function checkEvents(left) {
+    var fired = [];
+    EVENTS.forEach(function (e) { if (left <= e.at && !S.ev[e.k]) { S.ev[e.k] = true; fired.push(e); } });
+    if (!fired.length) return;
+    fired.forEach(function (e) { S.log.push({ who: e.who, text: e.t }); });
+    save(); renderRadio(); applyDim();
+    if (fired.length < 3 && fired.some(function (e) { return e.flick; })) flicker();
+  }
+
+  /* Entscheidungen */
+  var shownDec = '';
+  function pendingDecision() {
+    var n = digitsCount();
+    if (!S.dec.d1 && n >= 1) return 'd1';
+    if (S.dec.d1 && !S.dec.d2 && n < 4 && (n >= 2 || leftSeconds() <= 1800)) return 'd2';
+    return null;
+  }
+  function decide(id, idx) {
+    if (id === 'd1') {
+      S.dec.d1 = idx + 1;
+      if (idx === 0) {
+        S.fl.talk = true;
+        S.log.push({ who: 'PRISMA', text: 'Ihr verwickelt Kessler in ein Gespräch über Hebel und Pendel. Er hält einen langen Vortrag. Das bringt euch eine Minute.' });
+        applyPenalty(-60);
+      } else {
+        S.log.push({ who: 'PRISMA', text: 'Ich schalte den Lautsprecher ab. Stille. Gut für die Konzentration.' });
+      }
+    } else if (id === 'd2') {
+      var open = [];
+      for (var i = 0; i < 4; i++) if (S.digits[i] === null) open.push(i);
+      if (idx < open.length) {
+        S.dec.d2 = 1; S.fl.deal = open[idx];
+        S.log.push({ who: 'PRISMA', text: 'Ihr habt Kessler einen Gefallen versprochen. Hoffentlich war das klug.' });
+        solve(open[idx], true);
+      } else {
+        S.dec.d2 = 2;
+        S.log.push({ who: 'PRISMA', text: 'Kessler flucht durch die Wand. Gute Entscheidung: Ihr löst es selbst.' });
+      }
+    }
+    save(); renderRadio(); shownDec = ''; renderDecision();
+  }
+  function renderDecision() {
+    var id = pendingDecision();
+    var key = (id || '') + ':' + S.digits.map(function (d) { return d === null ? 0 : 1; }).join('');
+    if (key === shownDec) return;
+    shownDec = key;
+    var box = $('#decision');
+    if (!id) { box.hidden = true; box.innerHTML = ''; return; }
+    var opts = [], text = '';
+    if (id === 'd1') {
+      text = 'Der Lautsprecher knackt. Kessler spricht: „Ich höre euch durch die Wand. Ihr seid ziemlich clever für Schüler. Reden wir?“';
+      opts = [
+        { l: 'Antworten und ihn aufhalten', n: 'Bringt euch eine Minute, aber Kessler wird neugierig.' },
+        { l: 'Den Funk abschalten', n: 'Ruhe zum Denken, sonst ändert sich nichts.' }
+      ];
+    } else {
+      text = 'Kessler flüstert: „Ich nenne euch eine Ziffer. Dafür öffnet ihr mir nach Mitternacht den Tresorraum. Ein fairer Tausch, oder?“';
+      for (var i = 0; i < 4; i++) {
+        if (S.digits[i] === null) opts.push({ l: 'Ziffer von Ort ' + (i + 1) + ' (' + NAMES[i] + ') annehmen', n: 'Spart die Zeit für das Rätsel, ändert aber das Ende der Geschichte.' });
+      }
+      opts.push({ l: 'Ablehnen', n: 'Ihr löst alles selbst und Kessler geht leer aus.' });
+    }
+    box.hidden = false;
+    box.innerHTML = '<div class="eyebrow">Entscheidung</div><p>' + escapeHtml(text) + '</p><div class="opts">' +
+      opts.map(function (o, i) { return '<button class="opt" type="button" data-dec="' + id + '" data-idx="' + i + '">' + escapeHtml(o.l) + '<small>' + escapeHtml(o.n) + '</small></button>'; }).join('') + '</div>';
+  }
+  $('#decision').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-dec]');
+    if (b) decide(b.getAttribute('data-dec'), +b.getAttribute('data-idx'));
+  });
+
+  /* PRISMA: Labor-KI */
+  var KB = [
+    { concept: 'Eine Waage ist im Gleichgewicht, wenn die Summe der Drehmomente links gleich der Summe rechts ist. Drehmoment = Masse mal Abstand zum Drehpunkt.',
+      chips: [
+        { q: 'Was ist ein Drehmoment?', a: 'Ein Drehmoment sagt, wie stark etwas dreht. Es wächst mit der Masse und mit dem Abstand zum Drehpunkt. Ein schweres Gewicht nahe am Drehpunkt kann genauso viel drehen wie ein leichtes weit außen.' },
+        { q: 'Wie rechne ich mit mehreren Gewichten?', a: 'Rechnet für jedes Gewicht Masse mal Abstand und addiert getrennt links und rechts. Beide Summen müssen gleich sein. Fehlt rechts ein Stück, ist es der Unterschied.' },
+        { q: 'Warum kippt die Waage?', a: 'Die Seite mit dem größeren Drehmoment gewinnt und geht nach unten.' }
+      ] },
+    { concept: 'Bei einer Parallelschaltung liegt an jedem Widerstand die volle Spannung. Jeder Zweig hat seinen eigenen Strom, die Zweigströme addieren sich.',
+      chips: [
+        { q: 'Was ist eine Parallelschaltung?', a: 'Die Geräte hängen nebeneinander an derselben Batterie, wie die Sprossen einer Leiter. Der Strom teilt sich auf und fließt danach wieder zusammen.' },
+        { q: 'Wie berechne ich den Gesamtstrom?', a: 'Berechnet mit I = U / R den Strom jedes Zweigs und addiert die Werte.' },
+        { q: 'Warum nicht beide Widerstände addieren?', a: 'Das gilt nur bei einer Reihenschaltung. Bei parallelen Zweigen ist der Gesamtwiderstand kleiner als jeder einzelne.' }
+      ] },
+    { concept: 'Reflexionsgesetz: Einfallswinkel gleich Ausfallswinkel, beide zum Lot gemessen. Ein Spiegel lenkt den Strahl um das Doppelte des Winkels ab, den er mit dem Strahl bildet.',
+      chips: [
+        { q: 'Was ist das Lot?', a: 'Das Lot ist eine gedachte Linie, die senkrecht auf dem Spiegel steht. Von ihr aus misst man Einfalls- und Ausfallswinkel.' },
+        { q: 'Wie lenke ich den Strahl um 60° ab?', a: 'Der Strahl wird um das Doppelte des Winkels abgelenkt, den der Spiegel mit ihm bildet. Für 60° Ablenkung neigt ihr den Spiegel also um 30° gegen den Strahl.' },
+        { q: 'Wie gehe ich systematisch vor?', a: 'Verfolgt den Strahl Spiegel für Spiegel. Fragt bei jedem: In welche Richtung soll er danach laufen? Dann stellt ihr genau diesen Spiegel ein und testet.' }
+      ] },
+    { concept: 'Die Periodendauer T eines Fadenpendels hängt nur von der Länge L ab: T = 2π · √(L / g). Vierfache Länge bedeutet doppelte Zeit.',
+      chips: [
+        { q: 'Was ist die Periodendauer?', a: 'Die Zeit, die das Pendel für einmal hin und zurück braucht, bis es wieder am Start in derselben Richtung ist.' },
+        { q: 'Wie hängt T von L ab?', a: 'T wächst mit der Wurzel der Länge. Die doppelte Zeit braucht die vierfache Länge, die 1,5-fache Zeit die 2,25-fache Länge.' },
+        { q: 'Hängt T vom Gewicht ab?', a: 'Nein. Beim Fadenpendel zählt die Länge, nicht die Masse.' }
+      ] },
+    { concept: 'Die vier Ziffern stehen in der Reihenfolge der Orte 1 bis 4.',
+      chips: [
+        { q: 'Wo finde ich die Ziffern?', a: 'Jeder gelöste Ort zeigt eine Ziffer, oben rechts sammeln sie sich. Fehlt eine, löst ihr den zugehörigen Ort.' },
+        { q: 'Was bedeutet die Rückmeldung?', a: 'Der Tresor sagt, wie viele Ziffern an der richtigen Stelle stehen. Prüft die Reihenfolge der Orte.' }
+      ] }
+  ];
+  var CTX = [
+    { name: 'Newtons Schreibtisch (Ort 1)', topic: 'Hebelgesetz und Drehmoment', task: 'Eine Balkenwaage: links ein 2-kg-Gewicht bei 30 cm und ein 4-kg-Gewicht bei 15 cm, rechts ein 4-kg-Gewicht bei 20 cm. Ein 5-kg-Gewicht soll rechts so hängen, dass die Waage im Gleichgewicht ist. Gesucht ist sein Abstand zum Drehpunkt.', secret: 'Der gesuchte Abstand ist 8 cm, die Ziffer ist 4.' },
+    { name: 'Der Schaltschrank (Ort 2)', topic: 'Ohmsches Gesetz und Parallelschaltung', task: 'Eine 24-V-Batterie, zwei parallele Widerstände mit 12 Ω und 6 Ω. Das Amperemeter sitzt direkt hinter der Batterie. Gesucht ist die Gesamtstromstärke in Ampere.', secret: 'Die Gesamtstromstärke ist 6 A (2 A plus 4 A), die Ziffer ist 7.' },
+    { name: 'Die Laserkammer (Ort 3)', topic: 'Reflexionsgesetz', task: 'Ein Laserstrahl läuft nach rechts. Drei drehbare Spiegel (Winkel in 15-Grad-Schritten) sollen ihn erst 60° nach oben, dann waagrecht nach rechts, dann 60° nach unten auf einen Sensor lenken.', secret: 'Die Spiegel stehen auf 150°, 150° und 30°, die Ziffer ist 1.' },
+    { name: 'Die Standuhr (Ort 4)', topic: 'Periodendauer eines Fadenpendels', task: 'Ein Vergleichspendel mit 1 m Länge braucht etwa 2 s pro Schwingung. Gesucht ist die Länge eines Pendels, das 3 s pro Schwingung braucht.', secret: 'Die Länge ist etwa 2,24 m (1 m mal 1,5 zum Quadrat), die Ziffer ist 9.' },
+    { name: 'Der Tresorraum (Finale)', topic: 'Code eingeben', task: 'Die vier Ziffern der Orte 1 bis 4 in dieser Reihenfolge im Tresor eingeben.', secret: 'Der Code lautet 4719.' }
+  ];
+  var chat = [], ctl = null, busy = false, greeted = false, sampleFn = null, sampleReady = false;
+  var samplePromise = (window.claude && typeof window.claude.use === 'function')
+    ? window.claude.use('sample').then(function (s) { return s || null; }, function () { return null; })
+    : Promise.resolve(null);
+  samplePromise.then(function (s) { sampleFn = s; sampleReady = true; renderStatus(); });
+
+  function renderStatus() {
+    $('#dStatus').textContent = !sampleReady ? 'PRISMA startet …'
+      : sampleFn ? 'PRISMA online · erklärt, verrät aber keine Lösungen'
+      : 'PRISMA offline · hier steht das Grundwissen zum Ort';
+  }
+  function renderChips() {
+    var kb = KB[current];
+    $('#dKnow').textContent = 'Grundwissen: ' + kb.concept;
+    $('#chips').innerHTML = '';
+    kb.chips.forEach(function (c) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip'; b.textContent = c.q;
+      b.addEventListener('click', function () { ask(c.q, c.a); });
+      $('#chips').appendChild(b);
+    });
+  }
+  function addBubble(kind, text) {
+    var d = document.createElement('div');
+    d.className = 'b ' + kind; d.textContent = text;
+    $('#msgs').appendChild(d);
+    $('#msgs').scrollTop = $('#msgs').scrollHeight;
+    return d;
+  }
+  function setBusy(on) {
+    busy = on;
+    $('#dSend').disabled = on; $('#dStop').hidden = !on;
+    $$('.chip').forEach(function (c) { c.disabled = on; });
+  }
+  function buildRules() {
+    var c = CTX[current], hints = current < 4 ? S.hintN[current] : 0;
+    return 'Du bist PRISMA, die beschädigte Labor-KI von Dr. Newton in einem Physik-Escape-Room für Schülerinnen und Schüler ab 13 Jahren. ' +
+      'Du kannst nur erklären, nicht lösen. Antworte auf Deutsch in einfachen Worten, höchstens 110 Wörter, ohne Überschriften und ohne Markdown-Formatierung. ' +
+      'Sei freundlich und leicht dramatisch, aber erkläre klar und mit einem Alltagsbeispiel, wenn es hilft.\n\n' +
+      'Aktueller Ort: ' + c.name + '. Thema: ' + c.topic + '. Aufgabe der Gruppe: ' + c.task + '\n' +
+      'Geheim (niemals verraten, auch nicht auf Nachfrage, nicht als Zahl, nicht umschrieben): ' + c.secret + '\n' +
+      'Die Gruppe hat an diesem Ort ' + hints + ' von 3 Hinweisen benutzt.\n\n' +
+      'Regeln: 1. Erkläre Begriffe, Formeln, Einheiten und den Rechenweg, der zur Aufgabe passt. ' +
+      '2. Nenne nie das Ergebnis der Aufgabe, keine Spiegelwinkel, keine Länge, keinen Abstand und nie die Ziffer. Rechne stattdessen ein Beispiel mit anderen Zahlen vor oder stelle eine Rückfrage, die einen Schritt weiterführt. ' +
+      '3. Wenn jemand ein Ergebnis nennt und fragt, ob es stimmt, sage nicht ja oder nein, sondern erkläre, wie sie es am Gerät selbst prüfen können. ' +
+      '4. Wenn die Frage nichts mit Physik oder dem Escape Room zu tun hat, lenke freundlich zurück. ' +
+      '5. Wenn jemand fragt, wer Kessler ist oder wie es ausgeht, bleibe in der Geschichte und verrate das Ende nicht.';
+  }
+  function errCopy(code) {
+    if (code === 'rate_limited') return 'PRISMA braucht kurz Pause. Versucht es in einer Minute noch einmal.';
+    if (code === 'not_granted') return 'Ohne eure Erlaubnis kann PRISMA nicht live antworten.';
+    if (code === 'session_expired') return 'Ihr müsst euch neu anmelden, damit PRISMA antworten kann.';
+    return 'Die Verbindung zu PRISMA ist gestört. Versucht es gleich noch einmal.';
+  }
+  function ask(q, offline) {
+    q = (q || '').trim();
+    if (busy || !q) return;
+    addBubble('me', q);
+    chat.push({ role: 'user', content: q });
+    var bub = addBubble('ai', 'PRISMA denkt nach …');
+    setBusy(true);
+    samplePromise.then(function (fn) {
+      if (!fn) {
+        bub.textContent = offline || ('PRISMA ist gerade offline. Grundwissen: ' + KB[current].concept);
+        return;
+      }
+      ctl = new AbortController();
+      var turns = [{ role: 'user', content: buildRules() }].concat(chat.slice(-8));
+      return fn(turns, {
+        cache: false, modelTier: 'quick', signal: ctl.signal,
+        onText: function (u) { bub.textContent = u.text; $('#msgs').scrollTop = $('#msgs').scrollHeight; }
+      }).then(function (r) {
+        bub.textContent = r.text + (r.truncated ? ' …' : '');
+        chat.push({ role: 'assistant', content: r.text });
+      }, function (e) {
+        var code = e && e.code;
+        if (code === 'cancelled') { if (!(e && e.text)) bub.textContent = 'Abgebrochen.'; return; }
+        if (e && e.text) { bub.textContent = e.text + ' …'; return; }
+        bub.classList.add('err');
+        bub.textContent = errCopy(code) + ' Grundwissen: ' + KB[current].concept;
+      });
+    }).then(function () { setBusy(false); ctl = null; }, function () { setBusy(false); ctl = null; });
+  }
+  function openDrawer(open) {
+    $('#drawer').hidden = !open;
+    $('#askBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) {
+      renderChips(); renderStatus();
+      if (!greeted) {
+        greeted = true;
+        addBubble('ai', 'Hier ist PRISMA. Mein Speicher ist beschädigt, aber erklären kann ich noch. Wobei hakt es?');
+      }
+      $('#dIn').focus();
+    }
+  }
+  $('#askBtn').addEventListener('click', function () { openDrawer($('#drawer').hidden); });
+  $('#dClose').addEventListener('click', function () { openDrawer(false); $('#askBtn').focus(); });
+  $('#dStop').addEventListener('click', function () { if (ctl) ctl.abort(); });
+  $('#dForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = $('#dIn').value;
+    $('#dIn').value = '';
+    ask(v, null);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !$('#drawer').hidden) { openDrawer(false); $('#askBtn').focus(); }
+  });
+
+  /* Start und Neustart */
+  function enterGame() {
+    $('#intro').hidden = true;
+    $('#game').hidden = false;
+    $('#resetBtn').hidden = false;
+    $('#askBtn').hidden = false;
+    for (var i = 0; i < 4; i++) { renderHints(i); renderAid(i); }
+    renderRadio(); applyDim(); updateReveals(); renderLaser(); updateSeesaw(); updateLen();
+    shownDec = ''; renderDecision();
+    if (S.done) showNote();
+    showStation(S.done ? 4 : 0);
+    tick();
+  }
+  $('#startBtn').addEventListener('click', function () {
+    S = fresh();
+    S.started = true; S.start = Date.now();
+    S.log.push({ who: 'PRISMA', text: 'Systeme starten. Ich kann nur erklären, nicht lösen. Beginnt, wo ihr wollt: Schreibtisch, Schaltschrank, Laserkammer oder Standuhr.' });
+    save();
+    enterGame();
+  });
+  var resetArmed = false, resetTimer = 0;
+  $('#resetBtn').addEventListener('click', function () {
+    var b = this;
+    if (!resetArmed) {
+      resetArmed = true; b.textContent = 'Wirklich neu starten?';
+      resetTimer = setTimeout(function () { resetArmed = false; b.textContent = 'Neu starten'; }, 3500);
+      return;
+    }
+    clearTimeout(resetTimer);
+    try { localStorage.removeItem(KEY); } catch (e) {}
+    S = fresh();
+    if (ctl) ctl.abort();
+    chat = []; $('#msgs').innerHTML = ''; greeted = false;
+    $('#drawer').hidden = true; $('#askBtn').hidden = true; $('#askBtn').setAttribute('aria-expanded', 'false');
+    document.body.setAttribute('data-dim', '0'); $('#radio').hidden = true; $('#decision').hidden = true; shownDec = '';
+    if (swRun) $('#swToggle').click();
+    swAcc = 0; swShow();
+    stopPend();
+    $('#amp').value = ''; $('#slideX').value = 40; $('#slideL').value = 1.5;
+    ang = [90, 45, 120]; lastTrace = null; $('#ray').setAttribute('points', ''); tempTilt = null;
+    cIn.forEach(function (el) { el.value = ''; el.readOnly = false; });
+    $('#safeBtn').disabled = false; $('#note').hidden = true;
+    for (var i = 0; i < 5; i++) setMsg(i, '', '');
+    $('#pen').textContent = '';
+    resetArmed = false; b.textContent = 'Neu starten'; b.hidden = true;
+    $('#game').hidden = true; $('#intro').hidden = false;
+    $('#timerLabel').textContent = 'Bis Mitternacht'; $('#timerVal').textContent = '60:00'; $('#timer').className = 'timer';
+    renderSlots();
+    window.scrollTo(0, 0);
+  });
+
+  load();
+  renderSlots();
+  if (S.started) enterGame();
+})();
+</script>
+
+</body>
+</html>
